@@ -6,6 +6,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
+#include <unistd.h>
+#include <string.h>
+#include <pthread.h>
 #include "server.h"
 
 /**
@@ -44,4 +47,26 @@ void get_client_info (int sockfd, int* port) {
   int client_port = ntohs(client_addr.sin_port);
 
   *port = client_port;
+}
+
+void *handle_client (void *arg) {
+  int sockfd = *(int *)arg;
+  char buffer[1024];
+  ssize_t n;
+  int res;
+
+  res = read(sockfd, buffer, sizeof(buffer));
+  while (res > 0) {
+    write(sockfd, buffer, n);
+    memset(buffer, 0, sizeof(buffer));
+  }
+
+  if (n == 0) {
+    printf("Le client a fermé la connexion\n");
+  } else {
+    perror("Erreur lors de la lecture de la socket");
+  }
+
+  close(sockfd);
+  pthread_exit(NULL);
 }
