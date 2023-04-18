@@ -17,10 +17,7 @@ et de développer certaines fonctionnalités.
 ## 🚀 Getting Started
 ### Installation
 ```bash
-make
 
-./server <ip> <port>
-./client <ip> <port>
 ```
 
 ## ✨ Idées
