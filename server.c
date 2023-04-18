@@ -52,16 +52,15 @@ void get_client_info (int sockfd, int* port) {
 void *handle_client (void *arg) {
   int sockfd = *(int *)arg;
   char buffer[1024];
-  ssize_t n;
-  int res;
 
-  res = read(sockfd, buffer, sizeof(buffer));
+  ssize_t res = read(sockfd, buffer, sizeof(buffer));
+  
   while (res > 0) {
-    write(sockfd, buffer, n);
+    write(sockfd, buffer, res);
     memset(buffer, 0, sizeof(buffer));
   }
 
-  if (n == 0) {
+  if (res == 0) {
     printf("Le client a fermé la connexion\n");
   } else {
     perror("Erreur lors de la lecture de la socket");
