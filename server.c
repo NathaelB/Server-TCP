@@ -19,8 +19,9 @@
 struct sockaddr_in create_server (int port) {
   struct sockaddr_in Server;
 
+  memset(&Server, 0, sizeof (Server));
   Server.sin_family = AF_INET;
-  Server.sin_addr.s_addr = INADDR_ANY;
+  Server.sin_addr.s_addr = inet_addr("127.0.0.1");
   Server.sin_port = htons(port);
 
   return Server;
@@ -51,21 +52,66 @@ void get_client_info (int sockfd, int* port) {
 
 void *handle_client (void *arg) {
   int sockfd = *(int *)arg;
-  char buffer[1024];
+  char buffer[1024] = {0};
 
+  printf("SOCKFD %d\n", sockfd);
   ssize_t res = read(sockfd, buffer, sizeof(buffer));
-  
-  while (res > 0) {
-    write(sockfd, buffer, res);
-    memset(buffer, 0, sizeof(buffer));
+
+  if (res < 0) {
+    perror("ERROR: socket read");
+    exit(EXIT_FAILURE);
   }
 
-  if (res == 0) {
-    printf("Le client a fermé la connexion\n");
-  } else {
-    perror("Erreur lors de la lecture de la socket");
+  const char* hello = "Hello form server";
+
+  res = send(sockfd, hello, strlen(hello), 0);
+
+  if (res < 0) {
+    perror("ERROR: send info to client");
+    close(sockfd);
+    pthread_exit(NULL);
+    exit(EXIT_FAILURE);
   }
+
+  read(sockfd, buffer, 1024);
+  printf("Client message: %s\n", buffer);
 
   close(sockfd);
   pthread_exit(NULL);
+}
+
+void *connection_handler (void *socket_desc) {
+  printf("CH TEST\n");
+  int res;
+  int client_socket = *(int *)socket_desc;
+  char buffer[1024] = {0};
+  ssize_t read_size;
+
+  read_size = read(client_socket, buffer, 1024);
+  while (read_size > 0) {
+    printf("Message reçu : %s\n", buffer);
+
+    res = write(client_socket, "Bonjour, je suis le serveur", strlen("Bonjour, je suis le serveur"));
+    if (res == -1) {
+      perror("Erreur lors de l'envoi de la réponse");
+      break;
+    }
+
+    memset(buffer, 0, 1024);
+  }
+  printf("%lu\n", read_size);
+
+  if (read_size == 0) {
+    printf("Le client a fermé la connexion\n");
+  } else if (read_size == -1) {
+    perror("Erreur lors de la lecture de la socket");
+  }
+
+  res = close(client_socket);
+  if (res == -1) {
+    perror("Erreur lors de la fermeture de la socket");
+  }
+  free(socket_desc);
+
+  return NULL;
 }

@@ -6,89 +6,119 @@
 #include <string.h>
 #include "server.h"
 
+void launch ();
+
 int main () {
+  launch();
+  return 0;
+}
+
+
+
+void launch () {
+  int server_socket, client_socket;
+  struct sockaddr_in server_addr, client_addr;
+  int res;
+
   printf("Veuillez indiquez le numéro de port de l'application\n");
+
   char resp[80];
   scanf("%s", resp);
-
   int port = atoi(resp);
+
+  server_socket = socket(PF_INET, SOCK_STREAM, 0);
 
   printf("L'application a demarré sur le port %d\n", port);
 
-  int MaSocket = socket(PF_INET, SOCK_STREAM, 0);
-  int res;
-
-  if (MaSocket == -1) {
+  if (server_socket == -1) {
     printf("ERROR: socket\n");
-    close(MaSocket);
+    close(server_socket);
     exit(EXIT_FAILURE);
   }
 
-  struct sockaddr_in Server = create_server(port);
+  server_addr = create_server(port);
 
-  int lgA = sizeof(struct sockaddr_in);
-
-  res = bind(MaSocket, (struct sockaddr*) &Server, sizeof(Server));
+  /**
+   * BIND
+   */
+  res = bind(server_socket, (struct sockaddr*) &server_addr, sizeof(server_addr));
 
   if (res == -1) {
     printf("ERROR: bind");
-    close(MaSocket);
+    close(server_socket);
     exit(EXIT_FAILURE);
   }
 
-  res = listen(MaSocket, 7);
+  /**
+   * LISTEN
+   */
+  res = listen(server_socket, 7);
 
   if (res < 0) {
     printf("ERROR: listen");
-    close(MaSocket);
+    close(server_socket);
     exit(EXIT_FAILURE);
   }
 
+  int client;
+  socklen_t client_len;
+  int i = 0;
+  printf("Serveur en attente de connexions...\n");
 
-  struct sockaddr_in client;
+  char msg[1024];
+  char buffer[1024];
+
   socklen_t lg = sizeof(struct sockaddr_in);
+  client_socket = accept(server_socket, (struct sockaddr*) &client_addr, &lg);
+  int port_client;
+
+  get_client_info(client_socket, &port_client);
+  client_addr = create_server(port_client);
 
   while (1) {
-    int len = 0;
-    char buffer[256];
-    char msg[256];
-    int SocketClient = accept(MaSocket, (struct sockaddr*) &client, &lg);
-    int portClient;
+    strcpy(msg, "");
+    strcpy(buffer, "");
 
-    get_client_info(SocketClient, &portClient);
 
-    printf("Client port: %d\n", portClient);
-    len = recv(SocketClient, buffer, sizeof(buffer), 0);
+    res = recv(client_socket, &buffer, sizeof (buffer), 0);
 
-    if (len == -1) {
-      close(SocketClient);
-      close(MaSocket);
+    if (res < 0) {
+      close(client_socket);
+      close(server_socket);
       printf("Erreur lors de la réception des données\n");
       exit(EXIT_FAILURE);
     }
 
-    printf("Message reçu du client: %s\n", buffer);
-    printf("Écrivez un message que vous voulez envoyer au client\n");
-    //fgets(msg, sizeof (msg), stdin);
-    scanf("%s", msg);
-
-    if (strcmp(msg, "end") == 0) {
-      char* msg_resp = "Le serveur a décidé de prendre sa retraite";
-      printf("%lu", sizeof (msg_resp));
-      send(SocketClient, msg_resp, sizeof (msg_resp), 0);
-
-      close(SocketClient);
-      break;
+    if (strcmp(buffer, "end\n") == 0) {
+      printf("LE SERVER S'ETEINT VIA LA DEMANDE DU CLIENT\n");
+      close(server_socket);
+      close(client_socket);
+      exit(EXIT_FAILURE);
     }
 
-    printf("REPONSE ENVOYE: %s\n", msg);
+    printf("Réponse du client: %s\n",buffer);
 
-    send(SocketClient, msg, sizeof (msg), 0);
+    printf("Entrée votre message\n");
+    fgets(msg, sizeof (msg), stdin);
 
-    close(SocketClient);
+    res = send(client_socket,msg,sizeof(msg),0);
+    printf("VOICI LE MESSAGE QUE TU ENNVOIES: %s\n", msg);
+
+    if (res < 0) {
+      printf("ERROR: send");
+      close(server_socket);
+      close(client_socket);
+      exit(EXIT_FAILURE);
+    }
+
+    if (strcmp(msg, "end\n") == 0) {
+      printf("LE SERVER S'ETEINT VIA LA DEMANDE DU SERVER\n");
+      close(server_socket);
+      close(client_socket);
+      exit(EXIT_FAILURE);
+    }
   }
 
-  close(MaSocket);
-
-  return 0;
+  close(server_socket);
+  close(client_socket);
 }

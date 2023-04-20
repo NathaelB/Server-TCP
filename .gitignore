@@ -3,3 +3,5 @@ server
 client
 cmake-build-debug
 *.o
+
+cmake-build-fac
